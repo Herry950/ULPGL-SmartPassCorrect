@@ -1,0 +1,2 @@
+/* ULPGL-SMARTPASS SECURITY LAYER */
+(function(){const u="https://eyjmbgvvnnocixbpvswj.supabase.co",k="sb_publishable_CC4awcbc0cL-AzCIgGAyOA_GOv5dV4i";window.itSupabase=supabase.createClient(u,k);})();

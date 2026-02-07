@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#003366">
+    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>Dashboard Financier - Smart-Pay ULPGL</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="firebase-config.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; margin: 0; padding: 0; }
+        
+        /* Navigation Responsive */
+        nav { background: #003366; padding: 15px; display: flex; justify-content: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-wrap: wrap; }
+        nav a, nav button { color: white; text-decoration: none; font-weight: bold; font-size: 13px; background: none; border: none; cursor: pointer; }
+        
+        .main-content { padding: 15px; box-sizing: border-box; }
+        
+        /* Header Adaptatif */
+        .header { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px; border-left: 5px solid #003366; }
+        @media (min-width: 768px) {
+            .header { flex-direction: row; justify-content: space-between; align-items: center; }
+        }
+
+        /* Grille de stats adaptative */
+        .stats-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 25px; }
+        @media (min-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: #003366; display: block; }
+        .stat-label { color: #666; font-size: 12px; text-transform: uppercase; }
+
+        /* Conteneur de tableau avec défilement horizontal */
+        .table-container { 
+            background: white; 
+            padding: 10px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+            overflow-x: auto; 
+        }
+
+        .actions { display: flex; gap: 10px; width: 100%; }
+        @media (min-width: 768px) { .actions { width: auto; } }
+
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th { text-align: left; background: #f8f9fa; padding: 12px; color: #003366; border-bottom: 2px solid #eee; font-size: 14px; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+
+        .btn { flex: 1; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 13px; }
+        .btn-refresh { background: #003366; color: white; }
+        .btn-pdf { background: #d32f2f; color: white; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="paiement.html">💳 PAIEMENT</a>
+        <button onclick="adminGate('dashboard.html')" style="border-bottom: 2px solid orange;">📊 DASHBOARD</button>
+        <button onclick="adminGate('index.html')">🔍 SCANNER</button>
+    </nav>
+
+    <div class="main-content">
+        <div class="header">
+            <div>
+                <h1 style="margin:0; color: #003366; font-size: 1.5rem;">ULPGL Smart-Finance</h1>
+                <span style="color: #666; font-size: 14px;">Rapport en temps réel</span>
+            </div>
+            <div class="actions">
+                <button class="btn btn-refresh" onclick="chargerStats()">Actualiser 🔄</button>
+                <button class="btn btn-pdf" onclick="exporterPDF()">Export PDF 📄</button>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">Total Net ULPGL</span>
+                <span id="total-net" class="stat-value">0.00 $</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Commissions Smart-Pay</span>
+                <span id="total-service" class="stat-value" style="color: #28a745;">0.00 $</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Étudiants Validés</span>
+                <span id="total-etudiants" class="stat-value" style="color: #e67e22;">0</span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="ma-table">
+                <thead>
+                    <tr>
+                        <th>Date & Heure</th>
+                        <th>Matricule</th>
+                        <th>Motif</th>
+                        <th>Net ($)</th>
+                        <th>Total ($)</th>
+                        <th>Référence</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- ACTIVATION PWA ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        // --- BLINDAGE ---
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123 || (e.ctrlKey && (e.shiftKey || e.keyCode == 85))) return false;
+        };
+
+        function adminGate(page) {
+            const code = prompt("Accès Admin - Entrez le code secret :");
+            if (code === "ULPGL-2026") {
+                window.location.href = page;
+            } else {
+                alert("Accès refusé !");
+            }
+        }
+
+        let donneesTransactions = [];
+
+        async function chargerStats() {
+            try {
+                const { data, error } = await window.itSupabase
+                    .from('paiements')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                donneesTransactions = data;
+
+                let cumulNet = 0;
+                let cumulService = 0;
+                let htmlRows = "";
+
+                data.forEach(p => {
+                    cumulNet += parseFloat(p.montant_frais);
+                    cumulService += (parseFloat(p.montant_total_paye) - parseFloat(p.montant_frais)); 
+
+                    const date = new Date(p.created_at).toLocaleString('fr-FR');
+                    htmlRows += `
+                        <tr>
+                            <td>${date}</td>
+                            <td><b>${p.matricule}</b></td>
+                            <td style="color: #003366; font-weight: 500;">${p.motif || 'N/A'}</td> 
+                            <td>${p.montant_frais} $</td>
+                            <td>${p.montant_total_paye} $</td>
+                            <td><code>${p.reference_sms}</code></td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('total-net').innerText = cumulNet.toFixed(2) + " $";
+                document.getElementById('total-service').innerText = cumulService.toFixed(2) + " $";
+                document.getElementById('total-etudiants').innerText = data.length;
+                document.getElementById('table-body').innerHTML = htmlRows;
+
+            } catch (err) { console.error(err); }
+        }
+
+        function exporterPDF() {
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF('landscape');
+
+            doc.setFontSize(18);
+            doc.text("RAPPORT FINANCIER DES FRAIS - ULPGL", 14, 20);
+            doc.setFontSize(11);
+            doc.text('Généré le : ' + new Date().toLocaleString(), 14, 30);
+            doc.text('Total Encaissé : ' + document.getElementById('total-net').innerText, 14, 38);
+
+            doc.autoTable({
+                startY: 45,
+                head: [['Date', 'Matricule', 'Motif', 'Net ($)', 'Total ($)', 'Référence']],
+                body: donneesTransactions.map(p => [
+                    new Date(p.created_at).toLocaleString('fr-FR'),
+                    p.matricule,
+                    p.motif || 'N/A',
+                    p.montant_frais + " $",
+                    p.montant_total_paye + " $",
+                    p.reference_sms
+                ]),
+                theme: 'striped',
+                headStyles: { fillColor: [0, 51, 102] }
+            });
+
+            doc.save("Rapport_Paiements_ULPGL.pdf");
+        }
+
+        chargerStats();
+        setInterval(chargerStats, 30000);
+    </script>
+</body>
+</html>

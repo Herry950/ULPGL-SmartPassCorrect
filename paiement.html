@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#003366">
+    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>Paiement Frais ULPGL - PRO</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="firebase-config.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; text-align: center; padding: 0; margin: 0; }
+        
+        /* Navigation Responsive */
+        nav { background: #003366; padding: 15px; display: flex; justify-content: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-bottom: 20px; flex-wrap: wrap; }
+        nav a, nav button { color: white; text-decoration: none; font-weight: bold; font-size: 13px; background: none; border: none; cursor: pointer; font-family: inherit; }
+        
+        .pay-card { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 15px; 
+            display: inline-block; 
+            width: 95%; /* Remplit l'écran sur mobile */
+            max-width: 400px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
+            margin-bottom: 20px; 
+            box-sizing: border-box; 
+        }
+
+        select, input { 
+            width: 100%; /* S'adapte à la carte */
+            padding: 12px; 
+            margin: 10px 0; 
+            border: 1px solid #ccc; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            box-sizing: border-box; 
+        }
+
+        .btn-pay { background: #003366; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 15px; }
+        
+        .logo-methods { display: flex; justify-content: space-around; margin: 15px 0; font-size: 14px; font-weight: bold; }
+        .total-box { background: #fff3f3; padding: 15px; border-radius: 8px; border: 2px dashed #d32f2f; margin: 15px 0; }
+        .total-price { color: #d32f2f; font-size: 26px; font-weight: bold; display: block; }
+        .instruction-marchand { color: #003366; font-size: 13px; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="paiement.html" style="border-bottom: 2px solid orange;">💳 PAIEMENT</a>
+        <button onclick="adminGate()">Admin 🔒</button>
+    </nav>
+
+    <div class="pay-card">
+        <h2 style="color: #003366; margin-top: 0;">💳 Smart-Pay ULPGL</h2>
+        <p style="font-size: 14px;">Paiement des Frais d'Examen</p>
+        
+        <input type="text" id="p-mat" placeholder="Saisir ton Matricule">
+        <input type="tel" id="p-tel" placeholder="N° Téléphone (ex: 0812345678)" maxlength="10">
+        
+        <select id="p-motif">
+            <option value="" disabled selected>-- Motif du Paiement --</option>
+            <option value="1ère Session - 1er Semestre">1ère Session - 1er Semestre</option>
+            <option value="1ère Session - 2ème Semestre">1ère Session - 2ème Semestre</option>
+            <option value="2ème Session (Seconde)">2ème Session (Seconde)</option>
+            <option value="Complément de Frais">Complément de Frais</option>
+        </select>
+
+        <div class="logo-methods">
+            <span style="color:#e11010">Airtel</span>
+            <span style="color:#ff6600">Orange</span>
+            <span style="color:#007fff">M-Pesa</span>
+        </div>
+
+        <select id="p-methode" onchange="majInstruction()">
+            <option value="Airtel Money">Airtel Money</option>
+            <option value="Orange Money">Orange Money</option>
+            <option value="M-Pesa">M-Pesa</option>
+        </select>
+
+        <select id="p-mode" onchange="ajusterInterface()">
+            <option value="auto">Mode : Automatique (Push PIN)</option>
+            <option value="manuel">Mode : Manuel (Saisie ID SMS)</option>
+        </select>
+
+        <div class="total-box">
+            <span style="font-size: 14px; color: #555;">Votre compte sera débité de :</span>
+            <span class="total-price">11.20 $</span>
+            <div id="info-marchand" class="instruction-marchand"></div>
+        </div>
+
+        <div id="zone-ref" style="display:none;">
+            <input type="text" id="p-ref" placeholder="Coller l'ID Transaction reçu par SMS">
+        </div>
+        
+        <button class="btn-pay" onclick="validerPaiement()">LANCER LA DEMANDE DE PIN</button>
+    </div>
+
+    <script>
+        // --- ACTIVATION PWA ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+
+        // --- BLINDAGE ANTI-CURIEUX ---
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123 || (e.ctrlKey && (e.shiftKey || e.keyCode == 85))) return false;
+        };
+
+        function adminGate() {
+            const code = prompt("Accès Réservé - Entrez le code secret Admin :");
+            if (code === "ULPGL-2026") {
+                const choix = prompt("Où voulez-vous aller ?\n1. Dashboard Financier\n2. Scanner d'Accès\nTapez 1 ou 2 :");
+                if (choix === "1") window.location.href = "dashboard.html";
+                else if (choix === "2") window.location.href = "index.html";
+            } else {
+                alert("Code incorrect ! Accès refusé.");
+            }
+        }
+
+        const MONTANT_BASE = 10;
+        const FRAIS_RESEAU = MONTANT_BASE * 0.07; 
+        const FRAIS_SERVICE = 0.50;               
+        const TOTAL_A_PAYER = MONTANT_BASE + FRAIS_RESEAU + FRAIS_SERVICE;
+
+        function validerNumero(numero, methode) {
+            if (numero.length !== 10) return false;
+            const prefixe3 = numero.substring(0, 3);
+            if (methode === "Airtel Money") return ["099", "097"].includes(prefixe3);
+            if (methode === "M-Pesa") return ["081", "082", "083"].includes(prefixe3);
+            if (methode === "Orange Money") return ["084", "085", "089"].includes(prefixe3);
+            return false;
+        }
+
+        function majInstruction() {
+            const mode = document.getElementById('p-mode').value;
+            const methode = document.getElementById('p-methode').value;
+            const infoM = document.getElementById('info-marchand');
+            if(mode === "manuel") {
+                const codes = { "Airtel Money": "778899", "Orange Money": "112233", "M-Pesa": "554433" };
+                infoM.innerHTML = '👉 Envoyez exactement 11.20$ au code ' + codes[methode];
+            } else {
+                infoM.innerHTML = "";
+            }
+        }
+
+        function ajusterInterface() {
+            const mode = document.getElementById('p-mode').value;
+            const zoneRef = document.getElementById('zone-ref');
+            const btn = document.querySelector('.btn-pay');
+            zoneRef.style.display = (mode === "manuel") ? "block" : "none";
+            btn.innerText = (mode === "manuel") ? "VÉRIFIER MON PAIEMENT" : "LANCER LA DEMANDE DE PIN";
+            majInstruction();
+        }
+
+        async function validerPaiement() {
+            const mat = document.getElementById('p-mat').value.trim();
+            const tel = document.getElementById('p-tel').value.trim();
+            const motif = document.getElementById('p-motif').value;
+            const methode = document.getElementById('p-methode').value;
+            const mode = document.getElementById('p-mode').value;
+            const ref = document.getElementById('p-ref').value.trim();
+
+            if(!mat || !tel || !motif) {
+                alert("Erreur : Matricule, Téléphone et Motif requis !");
+                return;
+            }
+
+            if (!validerNumero(tel, methode)) {
+                alert("Erreur : Numéro " + methode + " invalide.");
+                return;
+            }
+
+            if(mode === "manuel" && !ref) {
+                alert("Veuillez saisir l'ID de transaction.");
+                return;
+            }
+
+            try {
+                let referenceFinale = ref;
+                if (mode === "auto") {
+                    alert('📱 Demande de ' + TOTAL_A_PAYER.toFixed(2) + '$ envoyée au ' + tel + '. Tapez votre PIN...');
+                    await new Promise(r => setTimeout(r, 2000));
+                    referenceFinale = "API-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+                }
+
+                const { error: payError } = await window.itSupabase
+                    .from('paiements')
+                    .insert([{ 
+                        matricule: mat, 
+                        montant_frais: MONTANT_BASE, 
+                        montant_total_paye: TOTAL_A_PAYER.toFixed(2),
+                        reference_sms: referenceFinale, 
+                        motif: motif,
+                        statut: 'Réussi' 
+                    }]);
+
+                if (payError) {
+                    alert("ID déjà utilisé ou erreur de base de données.");
+                    return;
+                }
+
+                await window.itSupabase.from('etudiants').update({ paye: true }).eq('matricule', mat);
+                alert("✅ PAIEMENT RÉUSSI ! Accès activé pour : " + motif);
+                window.location.reload();
+            } catch (err) {
+                alert("Erreur de connexion.");
+            }
+        }
+        window.onload = majInstruction;
+    </script>
+</body>
+</html>

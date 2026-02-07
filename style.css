@@ -1,0 +1,14 @@
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    background: #eef2f7; display: flex; justify-content: center; padding: 20px; }
+.container { background: white; padding: 30px; border-radius: 15px;
+     box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+h1 { color: #003366; font-size: 24px; }
+input, select, button { width: 100%; padding: 12px; margin: 10px 0;
+     border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
+button { background: #003366; color: white; font-weight: bold;
+     border: none; cursor: pointer; transition: 0.3s; }
+button:hover { background: #0055aa; }
+#status-box { padding: 10px; border-radius: 5px; margin-bottom: 20px;
+     font-weight: bold; background: #eee; }
+.success { background: #d4edda !important; color: #155724; }
+#qrcode-area { margin-top: 20px; display: flex; justify-content: center; }

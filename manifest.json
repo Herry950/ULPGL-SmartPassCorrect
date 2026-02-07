@@ -1,0 +1,21 @@
+{
+  "name": "ULPGL SmartPass",
+  "short_name": "SmartPass",
+  "description": "Système de contrôle d'accès et paiement ULPGL",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#003366",
+  "theme_color": "#003366",
+  "icons": [
+    {
+      "src": "https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

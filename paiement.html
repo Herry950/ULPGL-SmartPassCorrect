@@ -1,47 +1,26 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="#003366">
-    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <title>Paiement Frais ULPGL - PRO</title>
+
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#003366">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="firebase-config.js"></script>
+    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; text-align: center; padding: 0; margin: 0; }
-        
-        /* Navigation Responsive */
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f7; text-align: center; padding: 0; margin: 0; -webkit-tap-highlight-color: transparent; }
         nav { background: #003366; padding: 15px; display: flex; justify-content: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-bottom: 20px; flex-wrap: wrap; }
         nav a, nav button { color: white; text-decoration: none; font-weight: bold; font-size: 13px; background: none; border: none; cursor: pointer; font-family: inherit; }
-        
-        .pay-card { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 15px; 
-            display: inline-block; 
-            width: 95%; /* Remplit l'écran sur mobile */
-            max-width: 400px; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
-            margin-bottom: 20px; 
-            box-sizing: border-box; 
-        }
-
-        select, input { 
-            width: 100%; /* S'adapte à la carte */
-            padding: 12px; 
-            margin: 10px 0; 
-            border: 1px solid #ccc; 
-            border-radius: 8px; 
-            font-size: 16px; 
-            box-sizing: border-box; 
-        }
-
+        .pay-card { background: white; padding: 20px; border-radius: 15px; display: inline-block; width: 95%; max-width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); margin-bottom: 20px; box-sizing: border-box; }
+        select, input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
         .btn-pay { background: #003366; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; font-size: 15px; }
-        
         .logo-methods { display: flex; justify-content: space-around; margin: 15px 0; font-size: 14px; font-weight: bold; }
         .total-box { background: #fff3f3; padding: 15px; border-radius: 8px; border: 2px dashed #d32f2f; margin: 15px 0; }
         .total-price { color: #d32f2f; font-size: 26px; font-weight: bold; display: block; }
@@ -101,16 +80,15 @@
     </div>
 
     <script>
-        // --- ACTIVATION PWA ---
+        // --- ACTIVATION PWA OPTIMISÉE ---
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
         }
 
-        // --- BLINDAGE ANTI-CURIEUX ---
+        // --- SÉCURITÉ ---
         document.addEventListener('contextmenu', event => event.preventDefault());
-        document.onkeydown = function(e) {
-            if(e.keyCode == 123 || (e.ctrlKey && (e.shiftKey || e.keyCode == 85))) return false;
-        };
 
         function adminGate() {
             const code = prompt("Accès Réservé - Entrez le code secret Admin :");
@@ -173,11 +151,6 @@
 
             if (!validerNumero(tel, methode)) {
                 alert("Erreur : Numéro " + methode + " invalide.");
-                return;
-            }
-
-            if(mode === "manuel" && !ref) {
-                alert("Veuillez saisir l'ID de transaction.");
                 return;
             }
 

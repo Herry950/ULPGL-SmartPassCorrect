@@ -1,61 +1,39 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="#003366">
-    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <title>Dashboard Financier - Smart-Pay ULPGL</title>
     
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#003366">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="firebase-config.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; margin: 0; padding: 0; }
-        
-        /* Navigation Responsive */
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         nav { background: #003366; padding: 15px; display: flex; justify-content: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-wrap: wrap; }
         nav a, nav button { color: white; text-decoration: none; font-weight: bold; font-size: 13px; background: none; border: none; cursor: pointer; }
-        
         .main-content { padding: 15px; box-sizing: border-box; }
-        
-        /* Header Adaptatif */
         .header { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px; border-left: 5px solid #003366; }
-        @media (min-width: 768px) {
-            .header { flex-direction: row; justify-content: space-between; align-items: center; }
-        }
-
-        /* Grille de stats adaptative */
+        @media (min-width: 768px) { .header { flex-direction: row; justify-content: space-between; align-items: center; } }
         .stats-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 25px; }
-        @media (min-width: 768px) {
-            .stats-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-
+        @media (min-width: 768px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
         .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
         .stat-value { font-size: 24px; font-weight: bold; color: #003366; display: block; }
         .stat-label { color: #666; font-size: 12px; text-transform: uppercase; }
-
-        /* Conteneur de tableau avec défilement horizontal */
-        .table-container { 
-            background: white; 
-            padding: 10px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
-            overflow-x: auto; 
-        }
-
+        .table-container { background: white; padding: 10px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; }
         .actions { display: flex; gap: 10px; width: 100%; }
         @media (min-width: 768px) { .actions { width: auto; } }
-
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
         th { text-align: left; background: #f8f9fa; padding: 12px; color: #003366; border-bottom: 2px solid #eee; font-size: 14px; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 13px; }
-
         .btn { flex: 1; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; font-size: 13px; }
         .btn-refresh { background: #003366; color: white; }
         .btn-pdf { background: #d32f2f; color: white; }
@@ -114,16 +92,15 @@
     </div>
 
     <script>
-        // --- ACTIVATION PWA ---
+        // --- ACTIVATION PWA CORRIGÉE ---
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
         }
 
         // --- BLINDAGE ---
         document.addEventListener('contextmenu', event => event.preventDefault());
-        document.onkeydown = function(e) {
-            if(e.keyCode == 123 || (e.ctrlKey && (e.shiftKey || e.keyCode == 85))) return false;
-        };
 
         function adminGate(page) {
             const code = prompt("Accès Admin - Entrez le code secret :");
@@ -178,29 +155,17 @@
         function exporterPDF() {
             const { jsPDF } = window.jspdf; 
             const doc = new jsPDF('landscape');
-
-            doc.setFontSize(18);
             doc.text("RAPPORT FINANCIER DES FRAIS - ULPGL", 14, 20);
-            doc.setFontSize(11);
-            doc.text('Généré le : ' + new Date().toLocaleString(), 14, 30);
-            doc.text('Total Encaissé : ' + document.getElementById('total-net').innerText, 14, 38);
-
             doc.autoTable({
-                startY: 45,
+                startY: 30,
                 head: [['Date', 'Matricule', 'Motif', 'Net ($)', 'Total ($)', 'Référence']],
                 body: donneesTransactions.map(p => [
                     new Date(p.created_at).toLocaleString('fr-FR'),
-                    p.matricule,
-                    p.motif || 'N/A',
-                    p.montant_frais + " $",
-                    p.montant_total_paye + " $",
-                    p.reference_sms
+                    p.matricule, p.motif || 'N/A', p.montant_frais + " $", p.montant_total_paye + " $", p.reference_sms
                 ]),
-                theme: 'striped',
                 headStyles: { fillColor: [0, 51, 102] }
             });
-
-            doc.save("Rapport_Paiements_ULPGL.pdf");
+            doc.save("Rapport_ULPGL.pdf");
         }
 
         chargerStats();

@@ -1,59 +1,27 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="#003366">
-    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <title>Scanner d'Accès - ULPGL</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#003366">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://ulpgl.ac.cd/wp-content/uploads/2021/08/logo-ulpgl.png">
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="firebase-config.js"></script>
+    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; margin: 0; text-align: center; }
-        
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; margin: 0; text-align: center; -webkit-tap-highlight-color: transparent; }
         nav { background: #003366; padding: 15px; display: flex; justify-content: center; gap: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); flex-wrap: wrap; }
         nav a, nav button { color: white; text-decoration: none; font-weight: bold; font-size: 13px; background: none; border: none; cursor: pointer; padding: 5px; }
-        
         .container { padding: 20px; box-sizing: border-box; }
-        
-        #mat-input { 
-            padding: 12px; 
-            width: 90%; 
-            max-width: 350px; 
-            border-radius: 8px; 
-            border: 1px solid #ccc; 
-            margin: 10px 0; 
-            font-size: 16px; 
-            box-sizing: border-box;
-        }
-        
-        .btn-check { 
-            background: #003366; 
-            color: white; 
-            border: none; 
-            padding: 15px; 
-            width: 90%; 
-            max-width: 350px; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 16px;
-        }
-        
-        #resultat { 
-            margin: 20px auto; 
-            width: 90%; 
-            max-width: 350px; 
-            padding: 20px; 
-            border-radius: 15px; 
-            display: none; 
-            box-sizing: border-box;
-        }
-        
+        #mat-input { padding: 12px; width: 90%; max-width: 350px; border-radius: 8px; border: 1px solid #ccc; margin: 10px 0; font-size: 16px; box-sizing: border-box; }
+        .btn-check { background: #003366; color: white; border: none; padding: 15px; width: 90%; max-width: 350px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        #resultat { margin: 20px auto; width: 90%; max-width: 350px; padding: 20px; border-radius: 15px; display: none; box-sizing: border-box; }
         .valide { background: #d4edda; color: #155724; border: 2px solid #28a745; }
         .refuse { background: #f8d7da; color: #721c24; border: 2px solid #dc3545; }
         h3 { margin: 5px 0; }
@@ -69,7 +37,7 @@
 
     <div class="container">
         <h2 style="color: #003366;">Scanner de Contrôle</h2>
-        <input type="text" id="mat-input" placeholder="Scanner ou taper Matricule">
+        <input type="text" id="mat-input" placeholder="Scanner ou taper Matricule" inputmode="text">
         <br>
         <button class="btn-check" onclick="verifierPaiement()">VÉRIFIER ACCÈS</button>
 
@@ -81,18 +49,17 @@
     </div>
 
     <script>
-        // --- ACTIVATION PWA (Installation mobile) ---
+        // --- ENREGISTREMENT SERVICE WORKER AMÉLIORÉ ---
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js');
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('PWA prête !'))
+                .catch(err => console.error('Erreur PWA:', err));
+            });
         }
 
-        // --- BLINDAGE INITIAL : PROTECTION CONTRE L'INSPECTION ---
-        document.addEventListener('contextmenu', event => event.preventDefault()); 
-
-        document.onkeydown = function(e) {
-            if(e.keyCode == 123) return false;
-            if(e.ctrlKey && (e.shiftKey || e.keyCode == 85)) return false;
-        };
+        // --- SÉCURITÉ & NAVIGATION ---
+        document.addEventListener('contextmenu', e => e.preventDefault()); 
 
         function adminGate(page) {
             const code = prompt("Accès Admin - Entrez le code secret :");
@@ -104,34 +71,38 @@
         }
 
         async function verifierPaiement() {
-            const mat = document.getElementById('mat-input').value;
+            const mat = document.getElementById('mat-input').value.trim();
             const resDiv = document.getElementById('resultat');
             
             if(!mat) return alert("Saisissez un matricule");
 
-            const { data, error } = await window.itSupabase
-                .from('etudiants')
-                .select('*')
-                .eq('matricule', mat)
-                .single();
+            try {
+                const { data, error } = await window.itSupabase
+                    .from('etudiants')
+                    .select('*')
+                    .eq('matricule', mat)
+                    .single();
 
-            resDiv.style.display = "block";
+                resDiv.style.display = "block";
 
-            if (data) {
-                document.getElementById('res-nom').innerText = "👤 " + data.nom;
-                document.getElementById('res-promo').innerText = "🎓 " + data.promotion;
-                
-                if(data.paye === true) {
-                    resDiv.className = "valide";
-                    document.getElementById('res-verdict').innerText = "✅ ACCÈS AUTORISÉ";
+                if (data) {
+                    document.getElementById('res-nom').innerText = "👤 " + data.nom;
+                    document.getElementById('res-promo').innerText = "🎓 " + data.promotion;
+                    
+                    if(data.paye === true) {
+                        resDiv.className = "valide";
+                        document.getElementById('res-verdict').innerText = "✅ ACCÈS AUTORISÉ";
+                    } else {
+                        resDiv.className = "refuse";
+                        document.getElementById('res-verdict').innerText = "❌ NON EN RÈGLE";
+                    }
                 } else {
                     resDiv.className = "refuse";
-                    document.getElementById('res-verdict').innerText = "❌ NON EN RÈGLE";
+                    document.getElementById('res-nom').innerText = "Inconnu";
+                    document.getElementById('res-verdict').innerText = "❌ AUCUNE DONNÉE";
                 }
-            } else {
-                resDiv.className = "refuse";
-                document.getElementById('res-nom').innerText = "Inconnu";
-                document.getElementById('res-verdict').innerText = "❌ AUCUNE DONNÉE";
+            } catch (e) {
+                alert("Erreur de connexion à la base de données");
             }
         }
     </script>
